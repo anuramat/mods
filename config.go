@@ -166,7 +166,7 @@ type Config struct {
 	System              string     `yaml:"system"`
 	Role                string     `yaml:"role" env:"ROLE"`
 	AskModel            bool
-	Roles               map[string][]string
+	Roles               map[string]RoleConfig
 	ShowHelp            bool
 	ResetSettings       bool
 	Prefix              string
@@ -194,6 +194,43 @@ type Config struct {
 
 	openEditor                                         bool
 	cacheReadFromID, cacheWriteToID, cacheWriteToTitle string
+}
+
+// RoleConfig holds configuration for a role.
+type RoleConfig struct {
+	Prompt         []string `yaml:"prompt"`
+	AllowedTools   []string `yaml:"allowed_tools"`
+	BlockedTools   []string `yaml:"blocked_tools"`
+	AllowedServers []string `yaml:"allowed_servers"`
+	BlockedServers []string `yaml:"blocked_servers"`
+}
+
+// UnmarshalYAML implements custom YAML unmarshaling to support backwards compatibility.
+// Old format: role_name: ["prompt1", "prompt2"]
+// New format: role_name: { prompt: ["prompt1", "prompt2"], ... }
+func (r *RoleConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Try new format first
+	type newFormat RoleConfig
+	var newConfig newFormat
+	if err := unmarshal(&newConfig); err == nil {
+		*r = RoleConfig(newConfig)
+		return nil
+	}
+
+	// Try old format (array of strings)
+	var oldFormat []string
+	if err := unmarshal(&oldFormat); err == nil {
+		*r = RoleConfig{
+			Prompt:         oldFormat,
+			AllowedTools:   nil,
+			BlockedTools:   nil,
+			AllowedServers: nil,
+			BlockedServers: nil,
+		}
+		return nil
+	}
+
+	return fmt.Errorf("could not unmarshal role config")
 }
 
 // MCPServerConfig holds configuration for an MCP server.

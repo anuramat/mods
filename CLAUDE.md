@@ -76,7 +76,7 @@ The application uses a YAML configuration file with extensive model definitions.
 
 Key configuration sections:
 - `apis` - API provider configurations with base URLs and models
-- `roles` - Custom system prompts for different use cases  
+- `roles` - Role-based system prompts and MCP tool filtering (see Role System below)
 - `mcp-servers` - Model Context Protocol server configurations
 - Model aliases and fallbacks for graceful degradation
 
@@ -92,7 +92,7 @@ Uses SQLite for local conversation storage with tables:
 - **Conversation persistence** - Local SQLite database with SHA-1 conversation IDs
 - **MCP integration** - Model Context Protocol for extending model capabilities
 - **Streaming responses** - Real-time response display with Bubble Tea TUI
-- **Custom roles** - Predefined system prompts for different use cases
+- **Role-based MCP filtering** - Fine-grained control over MCP tools and servers per role
 - **Pipeline integration** - Reads from stdin for command line workflows
 
 ## Testing Guidelines
@@ -101,6 +101,47 @@ Uses SQLite for local conversation storage with tables:
 - Use `testdata/` directories for test fixtures (e.g., `internal/proto/testdata/`)
 - Golden file testing pattern used in some packages
 - Mock external API calls in tests
+
+## Role System
+
+### Role Configuration Structure
+
+Roles support both backwards-compatible simple format and new structured format:
+
+**Simple Format (legacy):**
+```yaml
+roles:
+  shell: ["you are a shell expert", "output only commands"]
+```
+
+**Structured Format (new):**
+```yaml
+roles:
+  shell:
+    prompt:
+      - "you are a shell expert"
+      - "output only commands"
+    allowed_servers: ["filesystem", "shell"]
+    blocked_servers: ["network"] 
+    allowed_tools: ["filesystem_*", "shell_*"]
+    blocked_tools: ["dangerous_*", "*_delete"]
+```
+
+### MCP Tool Filtering
+
+- **Tool Naming Convention**: `{server_name}_{tool_name}` (e.g., `github_list_repos`)
+- **Glob Pattern Support**: Use `*` wildcards in allowed/blocked lists
+- **Precedence**: Blocked lists always override allowed lists
+- **Filtering Levels**:
+  - Server-level: `allowed_servers` and `blocked_servers`
+  - Tool-level: `allowed_tools` and `blocked_tools` (matches full tool name or tool name alone)
+
+### Key Functions
+
+- `mcpToolsForRole(ctx, role)` - Gets filtered tools for specific role
+- `isServerAllowedForRole(serverName, roleConfig)` - Server filtering logic
+- `isToolAllowedForRole(toolName, serverName, roleConfig)` - Tool filtering logic
+- `RoleConfig.UnmarshalYAML()` - Backwards compatibility handler
 
 ## Code Style Notes
 

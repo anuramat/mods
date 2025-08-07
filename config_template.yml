@@ -24,13 +24,19 @@ mcp-servers:
 mcp-timeout: 15s
 # {{ index .Help "roles" }}
 roles:
-  "default": []
+  "default":
+    prompt: []
   # Example, a role called `shell`:
   # shell:
-  #   - you are a shell expert
-  #   - you do not explain anything
-  #   - you simply output one liners to solve the problems you're asked
-  #   - you do not provide any explanation whatsoever, ONLY the command
+  #   prompt:
+  #     - you are a shell expert
+  #     - you do not explain anything
+  #     - you simply output one liners to solve the problems you're asked
+  #     - you do not provide any explanation whatsoever, ONLY the command
+  #   allowed_servers: ["filesystem", "shell"]
+  #   blocked_servers: ["network"]
+  #   allowed_tools: ["filesystem_*", "shell_*"]
+  #   blocked_tools: ["dangerous_*"]
 # {{ index .Help "format" }}
 format: false
 # {{ index .Help "role" }}

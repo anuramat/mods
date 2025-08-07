@@ -644,11 +644,27 @@ func roleNames(prefix string) []string {
 
 func listRoles() {
 	for _, role := range roleNames("") {
+		roleConfig := getRoleConfig(role)
+
 		s := role
 		if role == config.Role {
 			s = role + stdoutStyles().Timeago.Render(" (default)")
 		}
 		fmt.Println(s)
+
+		// Show MCP configuration if present
+		if len(roleConfig.AllowedServers) > 0 {
+			fmt.Printf("  allowed servers: %s\n", strings.Join(roleConfig.AllowedServers, ", "))
+		}
+		if len(roleConfig.BlockedServers) > 0 {
+			fmt.Printf("  blocked servers: %s\n", strings.Join(roleConfig.BlockedServers, ", "))
+		}
+		if len(roleConfig.AllowedTools) > 0 {
+			fmt.Printf("  allowed tools: %s\n", strings.Join(roleConfig.AllowedTools, ", "))
+		}
+		if len(roleConfig.BlockedTools) > 0 {
+			fmt.Printf("  blocked tools: %s\n", strings.Join(roleConfig.BlockedTools, ", "))
+		}
 	}
 }
 
