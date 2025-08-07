@@ -8,6 +8,7 @@ import (
 	"iter"
 	"maps"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -62,10 +63,17 @@ func mcpListTools(ctx context.Context) error {
 }
 
 func mcpTools(ctx context.Context) (map[string][]mcp.Tool, error) {
+	return mcpToolsForRole(ctx, config.Role)
+}
+
+func mcpToolsForRole(ctx context.Context, role string) (map[string][]mcp.Tool, error) {
 	var mu sync.Mutex
 	var wg errgroup.Group
 	result := map[string][]mcp.Tool{}
-	for sname, server := range enabledMCPs() {
+
+	roleConfig := getRoleConfig(role)
+
+	for sname, server := range enabledMCPsForRole(roleConfig) {
 		wg.Go(func() error {
 			serverTools, err := mcpToolsFor(ctx, sname, server)
 			if errors.Is(err, context.DeadlineExceeded) {
@@ -80,8 +88,12 @@ func mcpTools(ctx context.Context) (map[string][]mcp.Tool, error) {
 					reason: "Could not list tools",
 				}
 			}
+
+			// Filter tools based on role configuration
+			filteredTools := filterToolsForRole(serverTools, sname, roleConfig)
+
 			mu.Lock()
-			result[sname] = append(result[sname], serverTools...)
+			result[sname] = append(result[sname], filteredTools...)
 			mu.Unlock()
 			return nil
 		})
@@ -190,4 +202,96 @@ func toolCall(ctx context.Context, name string, data []byte) (string, error) {
 		return "", errors.New(sb.String())
 	}
 	return sb.String(), nil
+}
+
+// getRoleConfig returns the role configuration for the given role name.
+// Returns empty config if role doesn't exist.
+func getRoleConfig(role string) RoleConfig {
+	if role == "" {
+		return RoleConfig{}
+	}
+	roleConfig, ok := config.Roles[role]
+	if !ok {
+		return RoleConfig{}
+	}
+	return roleConfig
+}
+
+// enabledMCPsForRole returns an iterator over MCP servers enabled for the given role.
+func enabledMCPsForRole(roleConfig RoleConfig) iter.Seq2[string, MCPServerConfig] {
+	return func(yield func(string, MCPServerConfig) bool) {
+		names := slices.Collect(maps.Keys(config.MCPServers))
+		slices.Sort(names)
+		for _, name := range names {
+			if !isMCPEnabled(name) || !isServerAllowedForRole(name, roleConfig) {
+				continue
+			}
+			if !yield(name, config.MCPServers[name]) {
+				return
+			}
+		}
+	}
+}
+
+// isServerAllowedForRole checks if a server is allowed for the given role configuration.
+func isServerAllowedForRole(serverName string, roleConfig RoleConfig) bool {
+	// Check blocked servers first (takes precedence)
+	for _, blocked := range roleConfig.BlockedServers {
+		if matched, _ := filepath.Match(blocked, serverName); matched {
+			return false
+		}
+	}
+
+	// If no allowed servers specified, allow all (that aren't blocked)
+	if len(roleConfig.AllowedServers) == 0 {
+		return true
+	}
+
+	// Check if server matches any allowed pattern
+	for _, allowed := range roleConfig.AllowedServers {
+		if matched, _ := filepath.Match(allowed, serverName); matched {
+			return true
+		}
+	}
+
+	return false
+}
+
+// filterToolsForRole filters tools based on role configuration.
+func filterToolsForRole(tools []mcp.Tool, serverName string, roleConfig RoleConfig) []mcp.Tool {
+	var filtered []mcp.Tool
+
+	for _, tool := range tools {
+		if isToolAllowedForRole(tool.Name, serverName, roleConfig) {
+			filtered = append(filtered, tool)
+		}
+	}
+
+	return filtered
+}
+
+// isToolAllowedForRole checks if a tool is allowed for the given role configuration.
+func isToolAllowedForRole(toolName, serverName string, roleConfig RoleConfig) bool {
+	fullToolName := fmt.Sprintf("%s_%s", serverName, toolName)
+
+	// Check blocked tools first (takes precedence)
+	for _, blocked := range roleConfig.BlockedTools {
+		if matched, _ := filepath.Match(blocked, fullToolName); matched {
+			return false
+		}
+	}
+
+	// If no allowed tools specified, allow all (that aren't blocked)
+	if len(roleConfig.AllowedTools) == 0 {
+		return true
+	}
+
+	// Check if tool matches any allowed pattern
+	for _, allowed := range roleConfig.AllowedTools {
+		if matched, _ := filepath.Match(allowed, fullToolName); matched {
+			return true
+		}
+	}
+
+	return false
 }
