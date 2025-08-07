@@ -74,6 +74,7 @@ func mcpToolsForRole(ctx context.Context, role string) (map[string][]mcp.Tool, e
 	roleConfig := getRoleConfig(role)
 
 	for sname, server := range enabledMCPsForRole(roleConfig) {
+		sname, server := sname, server // capture loop vars
 		wg.Go(func() error {
 			serverTools, err := mcpToolsFor(ctx, sname, server)
 			if errors.Is(err, context.DeadlineExceeded) {
@@ -146,8 +147,7 @@ func mcpToolsFor(ctx context.Context, name string, server MCPServerConfig) ([]mc
 	if err != nil {
 		return nil, fmt.Errorf("could not setup %s: %w", name, err)
 	}
-	defer cli.Close() //nolint:errcheck
-
+	// NOTE: Removed defer cli.Close() as it hangs in some MCP servers
 	tools, err := cli.ListTools(ctx, mcp.ListToolsRequest{})
 	if err != nil {
 		return nil, fmt.Errorf("could not setup %s: %w", name, err)
@@ -171,7 +171,7 @@ func toolCall(ctx context.Context, name string, data []byte) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("mcp: %w", err)
 	}
-	defer client.Close() //nolint:errcheck
+	// NOTE: Removed defer client.Close() as it hangs in some MCP servers
 
 	var args map[string]any
 	if len(data) > 0 {
