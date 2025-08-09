@@ -3,6 +3,7 @@ package openai
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -86,9 +87,26 @@ func (c *Client) Request(ctx context.Context, request proto.Request) stream.Stre
 		if request.MaxTokens != nil {
 			body.MaxTokens = openai.Int(*request.MaxTokens)
 		}
-		if request.API == "openai" && request.ResponseFormat != nil && *request.ResponseFormat == "json" {
-			body.ResponseFormat = openai.ChatCompletionNewParamsResponseFormatUnion{
-				OfJSONObject: &shared.ResponseFormatJSONObjectParam{},
+		if request.ResponseFormat != nil {
+			// Parse the ResponseFormat as JSON and set appropriate OpenAI format
+			var jsonFormat map[string]any
+			if err := json.Unmarshal([]byte(*request.ResponseFormat), &jsonFormat); err == nil {
+				if responseType, ok := jsonFormat["type"].(string); ok {
+					switch responseType {
+					case "json_object":
+						body.ResponseFormat = openai.ChatCompletionNewParamsResponseFormatUnion{
+							OfJSONObject: &shared.ResponseFormatJSONObjectParam{},
+						}
+					case "json_schema":
+						// Handle json_schema format
+						var jsonSchema shared.ResponseFormatJSONSchemaParam
+						if err := json.Unmarshal([]byte(*request.ResponseFormat), &jsonSchema); err == nil {
+							body.ResponseFormat = openai.ChatCompletionNewParamsResponseFormatUnion{
+								OfJSONSchema: &jsonSchema,
+							}
+						}
+					}
+				}
 			}
 		}
 	}

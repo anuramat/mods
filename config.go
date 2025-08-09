@@ -36,7 +36,9 @@ var help = map[string]string{
 	"ask-model":         "Ask which model to use via interactive prompt",
 	"max-input-chars":   "Default character limit on input to model",
 	"format":            "Ask for the response to be formatted as markdown unless otherwise set",
+	"format-as":         "Specify the format for the output (used with --format)",
 	"format-text":       "Text to append when using the -f flag",
+	"json":              "Set the response_format for the API (e.g. '{\"type\":\"json_object\"}' or '{\"type\":\"json_schema\",...}')",
 	"role":              "System role to use",
 	"roles":             "List of predefined system messages that can be used as roles",
 	"list-roles":        "List the roles defined in your configuration file",
@@ -144,6 +146,7 @@ type Config struct {
 	Format              bool       `yaml:"format" env:"FORMAT"`
 	FormatText          FormatText `yaml:"format-text"`
 	FormatAs            string     `yaml:"format-as" env:"FORMAT_AS"`
+	JSON                string     `yaml:"json" env:"JSON"`
 	Raw                 bool       `yaml:"raw" env:"RAW"`
 	Quiet               bool       `yaml:"quiet" env:"QUIET"`
 	MaxTokens           int64      `yaml:"max-tokens" env:"MAX_TOKENS"`
