@@ -86,7 +86,8 @@ func (c *Client) Request(ctx context.Context, request proto.Request) stream.Stre
 		if request.MaxTokens != nil {
 			body.MaxTokens = openai.Int(*request.MaxTokens)
 		}
-		if request.API == "openai" && request.ResponseFormat != nil && *request.ResponseFormat == "json" {
+		supportedAPIs := map[string]bool{"openai": true, "copilot": true}
+		if supportedAPIs[request.API] && request.ResponseFormat != nil && *request.ResponseFormat == "json" {
 			body.ResponseFormat = openai.ChatCompletionNewParamsResponseFormatUnion{
 				OfJSONObject: &shared.ResponseFormatJSONObjectParam{},
 			}
