@@ -15,7 +15,13 @@ import (
 	"github.com/openai/openai-go/shared"
 )
 
-var _ stream.Client = &Client{}
+var (
+	_ stream.Client = &Client{}
+	apisWithJSONResponseFormat = map[string]bool{
+		"openai":  true,
+		"copilot": true,
+	}
+)
 
 // Client is the openai client.
 type Client struct {
@@ -86,8 +92,7 @@ func (c *Client) Request(ctx context.Context, request proto.Request) stream.Stre
 		if request.MaxTokens != nil {
 			body.MaxTokens = openai.Int(*request.MaxTokens)
 		}
-		supportedAPIs := map[string]bool{"openai": true, "copilot": true}
-		if supportedAPIs[request.API] && request.ResponseFormat != nil && *request.ResponseFormat == "json" {
+		if apisWithJSONResponseFormat[request.API] && request.ResponseFormat != nil && *request.ResponseFormat == "json" {
 			body.ResponseFormat = openai.ChatCompletionNewParamsResponseFormatUnion{
 				OfJSONObject: &shared.ResponseFormatJSONObjectParam{},
 			}
