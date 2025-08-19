@@ -2,6 +2,7 @@
 package copilot
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -61,6 +62,11 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 	req.Header.Set("Editor-Version", copilotEditorVersion)
 	req.Header.Set("User-Agent", copilotUserAgent)
 
+	// Check if this is a vision request by examining the request body
+	if isVisionRequest(req) {
+		req.Header.Set("Copilot-Vision-Request", "true")
+	}
+
 	isTokenExpired := c.AccessToken != nil && c.AccessToken.ExpiresAt < time.Now().Unix()
 
 	if c.AccessToken == nil || isTokenExpired {
@@ -81,6 +87,26 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 	}
 
 	return httpResp, nil
+}
+
+// isVisionRequest checks if the HTTP request contains image content by examining the request body
+func isVisionRequest(req *http.Request) bool {
+	if req.Body == nil {
+		return false
+	}
+
+	// Read the body
+	bodyBytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		return false
+	}
+
+	// Restore the body so it can be read again
+	req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	// Check if the body contains image_url content
+	bodyStr := string(bodyBytes)
+	return strings.Contains(bodyStr, `"type":"image_url"`) || strings.Contains(bodyStr, `"type": "image_url"`)
 }
 
 func getCopilotRefreshToken() (string, error) {
